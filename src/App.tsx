@@ -5,7 +5,7 @@ import web3 from 'web3';
 const App = () => {
   const [ web3Instance , setWeb3Instance] = React.useState<web3>()
   const [ message, setMessage] = React.useState("")
-  const [ singedMessage, setSignedMessage ] = React.useState("")
+  const [ signature, setSignature ] = React.useState<string>("")
 
   React.useEffect(()=>{
   const setWeb3 = async() =>{
@@ -22,15 +22,21 @@ const App = () => {
   }
 
   const hundleTextSign = async(message: string) => {
-    if(web3Instance && message){
-      let accounts = await web3Instance.eth.getAccounts();
-      console.log(accounts)
-      web3Instance.eth.sign(web3Instance.utils.utf8ToHex(message), accounts[0])
-      .then((signedMessage) => setSignedMessage(signedMessage));
-      web3Instance.eth.sign(web3Instance.utils.utf8ToHex(message), accounts[0])
-      .then(console.log);
+    if(web3Instance && web3Instance.utils.sha3(message) != null){
+      let [account] = await web3Instance.eth.getAccounts();
+      let messageHash = web3Instance.utils.sha3(message) as string
+      // web3Instance.utils.sha3(message)で32byteにする
+      const signature = await web3Instance.eth.sign(messageHash, account);
+      setSignature(signature)
+    }
+  }
 
-      web3Instance.eth.personal.sign(message, accounts[0], "null").then(console.log)
+  const hundleVerifySignature = async()=>{
+    if(web3Instance && signature && web3Instance.utils.sha3(message) != null){
+      let [account] = await web3Instance.eth.getAccounts();
+      let messageHash = web3Instance.utils.sha3(message) as string
+      const result = web3Instance.eth.accounts.recover(messageHash, signature, true);
+      console.log(result === account)
     }
   }
 
@@ -42,8 +48,9 @@ const App = () => {
       <div>
         <input type="text" name="text" id="text1" value={message} onChange={event => setMessage(event.target.value)}/>
         <button onClick={()=> hundleTextSign(message)}>Sign (web3.eth.sign)</button>
+        <button onClick={()=> hundleVerifySignature()}>verify (web3.eth.sign)</button>
       </div>
-      signed message: {singedMessage}
+      signed message: {signature}
     </div>
   );
 }
